@@ -1,0 +1,13 @@
+# Worker-only image for Railway. Set RAILWAY_DOCKERFILE_PATH=Dockerfile.worker on
+# the worker service. Unlike ./Dockerfile it never runs `next build`: the worker
+# runs raw TypeScript through tsx and only needs the generated Prisma client.
+FROM node:20-slim
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run db:generate
+
+CMD ["npm", "run", "worker"]
