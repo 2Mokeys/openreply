@@ -1,7 +1,7 @@
 import { getMetaGraphApiVersion, requireEnv } from "@/lib/env";
 
 function instagramGraphBase() {
-  return `https://graph.instagram.com/${getMetaGraphApiVersion()}`;
+  return `https://graph.facebook.com/${getMetaGraphApiVersion()}`;
 }
 
 function facebookGraphBase() {
@@ -664,11 +664,14 @@ export async function getConversationMessages(
   return data.messages?.data ?? [];
 }
 
-export async function getUserInfo(accessToken: string): Promise<InstagramUser> {
-  const url = new URL(`${instagramGraphBase()}/me`);
+export async function getUserInfo(
+  accessToken: string,
+  instagramAccountId: string
+): Promise<InstagramUser> {
+  const url = new URL(`${instagramGraphBase()}/${instagramAccountId}`);
   url.searchParams.set(
     "fields",
-    "id,user_id,username,name,profile_picture_url,followers_count"
+    "id,username,name,profile_picture_url,followers_count"
   );
   url.searchParams.set("access_token", accessToken);
 
@@ -684,9 +687,10 @@ const MEDIA_PAGE_SIZE = 100;
 
 export async function getUserMedia(
   accessToken: string,
+  instagramAccountId: string,
   limit = 25
 ): Promise<InstagramMedia[]> {
-  const url = new URL(`${instagramGraphBase()}/me/media`);
+  const url = new URL(`${instagramGraphBase()}/${instagramAccountId}/media`);
   url.searchParams.set("fields", MEDIA_FIELDS);
   url.searchParams.set("limit", limit.toString());
   url.searchParams.set("access_token", accessToken);
@@ -704,11 +708,12 @@ export async function getUserMedia(
  */
 export async function getAllUserMedia(
   accessToken: string,
+  instagramAccountId: string,
   max = 500
 ): Promise<InstagramMedia[]> {
   const results: InstagramMedia[] = [];
 
-  const first = new URL(`${instagramGraphBase()}/me/media`);
+  const first = new URL(`${instagramGraphBase()}/${instagramAccountId}/media`);
   first.searchParams.set("fields", MEDIA_FIELDS);
   first.searchParams.set("limit", String(Math.min(MEDIA_PAGE_SIZE, max)));
   first.searchParams.set("access_token", accessToken);
@@ -873,7 +878,7 @@ export async function subscribeInstagramAccountToWebhooks(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        subscribed_fields: ["comments", "messages"],
+        subscribed_fields: ["comments", "messages", "messaging_postbacks"],
       }),
     }
   );

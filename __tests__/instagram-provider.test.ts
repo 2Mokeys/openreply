@@ -11,10 +11,15 @@ import {
   sendDirectMessageWithLinkButton,
   getRecentMediaComments,
   getUserFollowStatus,
+  getUserInfo,
   getUserMedia,
 } from "@/lib/instagram/provider";
 import { zernioRequest } from "@/lib/zernio/client";
-import { RateLimitError, TokenExpiredError } from "@/lib/meta/client";
+import {
+  RateLimitError,
+  TokenExpiredError,
+  subscribeInstagramAccountToWebhooks,
+} from "@/lib/meta/client";
 import { prisma } from "@/lib/db/client";
 const context = {
   provider: "ZERNIO" as const,
@@ -122,11 +127,33 @@ describe("Instagram provider boundary", () => {
     respond({ data: [{ id: "media" }] });
     expect(
       await getUserMedia({
-        context: { provider: "META", accessToken: "meta" },
+        context: {
+          provider: "META",
+          accessToken: "meta",
+          instagramId: "ig",
+        },
         limit: 3,
       })
     ).toEqual([{ id: "media" }]);
-    expect(fetchMock.mock.calls[0][0]).toContain("graph.instagram.com");
+    expect(fetchMock.mock.calls[0][0]).toContain("graph.facebook.com");
+    expect(new URL(fetchMock.mock.calls[0][0]).pathname).toMatch(/\/ig\/media$/);
+  });
+  it("loads the stored Instagram ID without the Instagram Login user_id field", async () => {
+    respond({ id: "ig", username: "fastablogging.io" });
+    await getUserInfo({
+      context: { provider: "META", accessToken: "meta", instagramId: "ig" },
+    });
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.pathname).toMatch(/\/ig$/);
+    expect(url.searchParams.get("fields")).not.toContain("user_id");
+  });
+  it("subscribes every webhook field used by the worker", async () => {
+    respond({ success: true });
+    await subscribeInstagramAccountToWebhooks("ig", "meta");
+    expect(fetchMock.mock.calls[0][0]).toContain("/ig/subscribed_apps");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      subscribed_fields: ["comments", "messages", "messaging_postbacks"],
+    });
   });
   it.each([
     [429, RateLimitError],

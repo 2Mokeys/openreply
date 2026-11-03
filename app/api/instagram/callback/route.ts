@@ -43,17 +43,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const redirectUri = `${baseUrl}/api/instagram/callback`;
-    const { accessToken: shortLivedToken } = await exchangeCodeForToken(
+    const { accessToken: shortLivedToken, userId } = await exchangeCodeForToken(
       code,
       redirectUri
     );
     const { accessToken: longLivedToken, expiresIn } =
       await getLongLivedToken(shortLivedToken);
-    const userInfo = await getUserInfo(longLivedToken);
-    // Webhooks and the messaging API key off the professional account ID
-    // (user_id), not the app-scoped `id`. Store user_id so comment webhooks
-    // can be matched back to this account. Fall back to id if user_id is
-    // ever absent.
+    const userInfo = await getUserInfo(longLivedToken, userId);
+    // Store the professional account ID used by webhooks and messaging.
+    // Keep the fallback for older responses that still include `user_id`.
     const instagramId = userInfo.user_id ?? userInfo.id;
     const connection = await canConnectInstagramAccount({
       workspaceId: state.workspaceId,
